@@ -1,0 +1,68 @@
+name: Google RDP (Telegram Controlled)
+
+on:
+  workflow_dispatch:
+    inputs:
+      crd_code:
+        description: 'Paste Google CRD Code Here'
+        required: true
+
+jobs:
+  google-rdp:
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      # 1. Setup
+      - name: Setup Environment
+        run: Write-Host "Telegram se Code mil gaya! Processing..."
+
+      # 2. Install & Configure CRD (Auto-Permission Fix)
+      - name: Install & Configure CRD
+        run: |
+          # Telegram se aaya hua code yahan receive hoga
+          $rawCode = "${{ github.event.inputs.crd_code }}"
+
+          if (-not $rawCode) {
+            Write-Error "Error: Code nahi mila! Telegram par sahi se paste karein."
+            exit 1
+          }
+
+          # CRD Installer Download
+          Invoke-WebRequest https://dl.google.com/edgedl/chrome-remote-desktop/jumphost_installer.exe -OutFile jumphost_installer.exe
+          Start-Process jumphost_installer.exe -ArgumentList '/install /quiet /norestart' -Wait
+
+          # --- Permission & PIN Fix ---
+          # Hum check karenge ki code me PIN hai ya nahi, nahi to jabardasti laga denge
+          # Taaki "Accept Permission" ka popup na aaye
+          $finalCommand = $rawCode
+          if ($finalCommand -notmatch '--pin=') {
+              $finalCommand = $finalCommand + " --pin=123456"
+          } else {
+              $finalCommand = $finalCommand -replace '--pin=\d+', '--pin=123456'
+          }
+
+          # Command run kar rahe hain
+          Write-Host "Configuring with PIN: 123456..."
+          Invoke-Expression $finalCommand
+
+      # 3. Notify Telegram (RDP Ready)
+      - name: Send Success to n8n
+        run: |
+          $WebhookUrl = "https://65.1.91.110.nip.io/webhook/rdp-credentials"
+          
+          $body = @{
+              user = "Google User"
+              password = "PIN: 123456"
+              ip = "✅ Ready! Open: https://remotedesktop.google.com/access"
+          } | ConvertTo-Json
+          
+          try {
+             Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body $body -ContentType "application/json"
+          } catch {
+             Write-Warning "Webhook Failed"
+          }
+
+      # 4. Keep Alive (6 Hours)
+      - name: Keep Alive
+        run: while ($true) { Start-Sleep -Seconds 300 }
