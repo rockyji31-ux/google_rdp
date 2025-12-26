@@ -17,22 +17,32 @@ jobs:
         run: Write-Host "Telegram se Code mil gaya! Processing..."
 
       - name: Install & Configure CRD
+        # Yahan hum input ko 'Safe Mode' me le rahe hain
+        env:
+          RAW_INPUT_CODE: ${{ github.event.inputs.crd_code }}
         run: |
-          $rawCode = "${{ github.event.inputs.crd_code }}"
+          # Env Variable se read kar rahe hain (Quote error nahi aayega)
+          $rawCode = $env:RAW_INPUT_CODE
+          
           if (-not $rawCode) {
             Write-Error "Error: Code nahi mila!"
             exit 1
           }
+
+          # Installer Download
           Invoke-WebRequest https://dl.google.com/edgedl/chrome-remote-desktop/jumphost_installer.exe -OutFile jumphost_installer.exe
           Start-Process jumphost_installer.exe -ArgumentList '/install /quiet /norestart' -Wait
           
+          # PIN Fix Logic
           $finalCommand = $rawCode
           if ($finalCommand -notmatch '--pin=') {
               $finalCommand = $finalCommand + " --pin=123456"
           } else {
               $finalCommand = $finalCommand -replace '--pin=\d+', '--pin=123456'
           }
-          Write-Host "Configuring with PIN: 123456..."
+          
+          Write-Host "Configuring CRD..."
+          # Command run karte hain
           Invoke-Expression $finalCommand
 
       - name: Send Success to n8n
@@ -43,6 +53,7 @@ jobs:
               password = "PIN: 123456"
               ip = "✅ Ready! Open: https://remotedesktop.google.com/access"
           } | ConvertTo-Json
+          
           try {
              Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body $body -ContentType "application/json"
           } catch {
