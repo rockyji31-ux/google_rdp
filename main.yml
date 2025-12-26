@@ -33,8 +33,8 @@ jobs:
           Start-Process jumphost_installer.exe -ArgumentList '/install /quiet /norestart' -Wait
 
           # --- Permission & PIN Fix ---
-          # Hum check karenge ki code me PIN hai ya nahi, nahi to jabardasti laga denge
-          # Taaki "Accept Permission" ka popup na aaye
+          # Hum check karenge ki code me PIN hai ya nahi.
+          # Agar nahi hai to '123456' laga denge taaki popup na aaye.
           $finalCommand = $rawCode
           if ($finalCommand -notmatch '--pin=') {
               $finalCommand = $finalCommand + " --pin=123456"
@@ -49,6 +49,7 @@ jobs:
       # 3. Notify Telegram (RDP Ready)
       - name: Send Success to n8n
         run: |
+          # Yahan aapka n8n webhook URL hai
           $WebhookUrl = "https://65.1.91.110.nip.io/webhook/rdp-credentials"
           
           $body = @{
@@ -60,7 +61,7 @@ jobs:
           try {
              Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body $body -ContentType "application/json"
           } catch {
-             Write-Warning "Webhook Failed"
+             Write-Warning "Webhook Failed to send but RDP is running."
           }
 
       # 4. Keep Alive (6 Hours)
