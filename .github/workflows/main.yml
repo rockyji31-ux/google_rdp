@@ -17,11 +17,10 @@ jobs:
         run: Write-Host "Telegram se Code mil gaya! Processing..."
 
       - name: Install & Configure CRD
-        # Yahan hum input ko 'Safe Mode' me le rahe hain
         env:
+          # Input ko environment variable me daal rahe hain (Safety ke liye)
           RAW_INPUT_CODE: ${{ github.event.inputs.crd_code }}
         run: |
-          # Env Variable se read kar rahe hain (Quote error nahi aayega)
           $rawCode = $env:RAW_INPUT_CODE
           
           if (-not $rawCode) {
@@ -29,11 +28,14 @@ jobs:
             exit 1
           }
 
-          # Installer Download
-          Invoke-WebRequest https://dl.google.com/edgedl/chrome-remote-desktop/jumphost_installer.exe -OutFile jumphost_installer.exe
-          Start-Process jumphost_installer.exe -ArgumentList '/install /quiet /norestart' -Wait
+          # --- FIX: Naya Link (.msi) use kar rahe hain ---
+          Write-Host "Downloading Chrome Remote Desktop..."
+          Invoke-WebRequest https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi -OutFile chromeremotedesktophost.msi
           
-          # PIN Fix Logic
+          Write-Host "Installing..."
+          Start-Process msiexec.exe -ArgumentList '/i chromeremotedesktophost.msi /quiet /norestart' -Wait
+          
+          # --- PIN Fix Logic ---
           $finalCommand = $rawCode
           if ($finalCommand -notmatch '--pin=') {
               $finalCommand = $finalCommand + " --pin=123456"
@@ -42,7 +44,6 @@ jobs:
           }
           
           Write-Host "Configuring CRD..."
-          # Command run karte hain
           Invoke-Expression $finalCommand
 
       - name: Send Success to n8n
